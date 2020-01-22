@@ -15,7 +15,7 @@ CR_WORK="${HOME}/${PROJECT}/control-repo"
 #Clone git instance 
 mkdir ~/${PROJECT}
 cd ~/${PROJECT}
-echo "https://root:PuppetClassroomGitlabForYou@${PROJECT}-gitlab.classroom.puppet.com" >> ~/.git-credentials
+echo "https://root:${PASSWORD}@${PROJECT}-gitlab.classroom.puppet.com" >> ~/.git-credentials
 git clone -b ${GIT_BRANCH} https://${PROJECT}-gitlab.classroom.puppet.com/puppet/control-repo.git
 git config --global user.email ${GIT_USER}
 git config --global user.name ${GIT_NAME}
