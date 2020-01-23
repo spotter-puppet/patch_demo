@@ -34,7 +34,28 @@ git config --global credential.helper store
 cd ${CR_WORK}
 
 git checkout -b ${GIT_BRANCH}
+git push origin ${GIT_BRANCH}
 
+echo "
+
+Log into CD4PE and create a Pipeline for the Development branch:
+	Go to Workspaces/Demo
+	Go to Control Repos/control-repo
+	Click on 'Add Pipeline' (blue Philips head icon)
+	Select 'development' branch
+	Click 'Add Pipeline'
+	Click 'Done' after 'The pipeline has been successfully added'
+	Click '+ Add default pipeline'
+	Click the checkbox next 'Auto promote' between Impace Analysis and Deployment stages
+	Click '+ Add a deployment' under the Deployment stage
+	Select 'Development environment' (cd4pe_development) for the node group
+	Use the 'Direct deployment policy'
+	Leave the default parameters and timeout'
+	Click 'Add Deployment to Stage'
+	Click 'Done' after the success notice
+"
+
+read -rsp $"Press any key to continue..." -n1 key
 #Add to Puppetfile
 #	albatrossflavour-os_patching 0.13.0
 #	traggiccode-wsusserver 1.1.2
