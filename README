@@ -1,30 +1,61 @@
+This is a pre-canned procedure for setting up a Windows patching demo based on Kevin Reeuwijk's blog at
 https://puppet.com/blog/how-automate-windows-patching-puppet/
 
+The patch_demo_setup.sh script will automate many parts of the demo and prompt you with the steps and procedures
+that need to be done manually.  Change the GIT_USER and GIT_NAME before using the script then run the script with 
+
+	patch_demo_setup.sh [demo-env] [git-branch] 
+
+where "demo-env" is the name of your hydra demo environment and "git-branch" is the name of the branch you want 
+setup and used for tracking code.  I've had most success with using development as the branch name, and several 
+failures trying to use the existing cd4pe_development branch, particularly when CD4PE actually starts running.
+
+If you want to try and do everything by hand and not use the script at all (masochist....):
+
 # Setup code in control-repo
-Clone git instance 
-	git clone -b production https://spp-gitlab.classroom.puppet.com/puppet/control-repo.git
-Add to Puppetfile
+* Log into your demo git instance and create the branch you want to use
+* Clone git instance 
+	git clone -b <branch> https://<demo>-gitlab.classroom.puppet.com/puppet/control-repo.git
+* Add to Puppetfile (or copy from files/ directory)
 	albatrossflavour-os_patching 0.13.0
 	traggiccode-wsusserver 1.1.2
 	noma4i-windows_updates 0.3.0
 	puppetlabs-wsus_client 3.1.0
-Add profile::platform::baseline::windows::patch_mgmt (.pp file) from blog
-Add patch_mgmt to profile/platform/baseline/windows.pp
-Add profile::app:wsus (.pp file) from blog
-Commit to git
-Deploy code to production
+* Add profile::platform::baseline::windows::patch_mgmt (.pp file) from files/ directory
+* Add patch_mgmt.pp to profile/platform/baseline/windows.pp from files/ directory
+* Add profile::app:wsus (.pp file) from files/ directory
+* Commit to git
+* Deploy code to production using puppet-code deploy or setup a CD4PE pipeline (see end)
 
 # Setup classifications in PE console
-Create Windows Prod environment group under Production
+Create Windows environment group under <branch>
 	use kernel = "windows" (lower case)
-Create WSUS environment under Windows Prod
+Create WSUS environment under Windows
 	pin win0 node as rule
 	add class profile::app:wsus
 	run Puppet and take a coffee break as WSUS setup is completed (about 20 minutes)
-	on win0, go into WSUS and force a sync to ensure patches are updated, take another break (could be hours)
+	on win0, go into WSUS and force a sync to ensure patches are updated, 
+	take another break (usually about 30 minutes)
 Add patch_mgmt to Windows Prod classification
-	set server_url parameter to http://*win0.classroom.puppet.com:8530/ (watch for stringification)
+	set server_url parameter to http://<demo>win0.classroom.puppet.com:8530/ (watch for stringification)
 	run puppet, should see new os_patching facts and KBs not applied
 	change blacklist parameter to include all listed KBs except one
 	change patch_window parameter to be around current time
 	run puppet, one patch should be applied
+
+# Setup CD4PE Pipeline
+* Log into CD4PE and create a Pipeline for the Development branch:
+* Go to Workspaces/Demo
+* Go to Control Repos/control-repo
+*   Click on 'Add Pipeline' (blue Philips head icon)
+*     Select 'development' branch
+*     Click 'Add Pipeline'
+*     Click 'Done' after 'The pipeline has been successfully added'
+*   Click '+ Add default pipeline'
+*   Click the checkbox next 'Auto promote' between Impace Analysis and Deployment stages
+*     Click '+ Add a deployment' under the Deployment stage
+*     Select 'Development environment' (cd4pe_development) for the node group
+*     Use the 'Direct deployment policy'
+*     Leave the default parameters and timeout'
+*     Click 'Add Deployment to Stage'
+*     Click 'Done' after the success notice
