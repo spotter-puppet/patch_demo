@@ -16,7 +16,7 @@ If you want to try and do everything by hand and not use the script at all (maso
 * Log into your demo git instance and create the branch you want to use
 * Clone git instance 
 	git clone -b <branch> https://<demo>-gitlab.classroom.puppet.com/puppet/control-repo.git
-* Add to Puppetfile (or copy from files/ directory)
+* Add to Puppetfile (or copy the Puppetfile from files/ directory)
 	albatrossflavour-os_patching 0.13.0
 	traggiccode-wsusserver 1.1.2
 	noma4i-windows_updates 0.3.0
@@ -31,13 +31,13 @@ If you want to try and do everything by hand and not use the script at all (maso
 Create Windows environment group under <branch>
 	use kernel = "windows" (lower case)
 Create WSUS environment under Windows
-	pin win0 node as rule
+	pin a windows node as rule (preferably win0 or win1)
 	add class profile::app:wsus
 	run Puppet and take a coffee break as WSUS setup is completed (about 20 minutes)
-	on win0, go into WSUS and force a sync to ensure patches are updated, 
+	on the pinned node, go into WSUS and force a sync to ensure patches are updated, 
 	take another break (usually about 30 minutes)
-Add patch_mgmt to Windows Prod classification
-	set server_url parameter to http://<demo>win0.classroom.puppet.com:8530/ (watch for stringification)
+Add patch_mgmt to the Windows classification
+	set server_url parameter to http://<wsus server>.classroom.puppet.com:8530/ (watch for stringification)
 	run puppet, should see new os_patching facts and KBs not applied
 	change blacklist parameter to include all listed KBs except one
 	change patch_window parameter to be around current time
