@@ -41,6 +41,19 @@ Add patch_mgmt to the Windows classification
 	run puppet, should see new os_patching facts and KBs not applied
 	change blacklist parameter to include all listed KBs except one
 	change patch_window parameter to be around current time
+	   Although patch_window will automatically show up in Puppet DSC, 
+	   to save, it must be in YAML format and ALL strings must be
+	   enclosed in double quotes or PE console will attempt to stringify
+	   and cause compilation errors
+	   For exmaple:
+
+	   {
+		   "range": "01:00 - 23:00",
+		   "weekday": "Sunday",
+		   "retry": 3
+	   }
+
+
 	run puppet, one patch should be applied
 
 # Setup CD4PE Pipeline
