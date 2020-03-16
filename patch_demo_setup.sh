@@ -46,7 +46,7 @@ Log into CD4PE and create a Pipeline for the Development branch:
 	Click 'Add Pipeline'
 	Click 'Done' after 'The pipeline has been successfully added'
 	Click '+ Add default pipeline'
-	Click the checkbox next 'Auto promote' between Impace Analysis and Deployment stages
+	Click the checkbox next 'Auto promote' between Impact Analysis and Deployment stages
 	Click '+ Add a deployment' under the Deployment stage
 	Select 'Development environment' (cd4pe_development) for the node group
 	Use the 'Direct deployment policy'
@@ -88,15 +88,15 @@ git push origin ${GIT_BRANCH}
 ## Setup classifications in PE console
 echo "
 
-Create Windows Prod environment group under Production
+Create Windows $GIT_BRANCH environment group under $GIT_BRANCH
 	use kernel = \"windows\" (lower case)
 "
 
 read -rsp $"Press any key to continue..." -n1 key
 echo "
 
-Create WSUS environment under Windows Prod
-	pin win0 node as rule
+Create WSUS environment under Windows
+	pin win0 node as rule (assumes using Production environment)
 	add class profile::app:wsus
 	run Puppet and take a coffee break as WSUS setup is completed (about 20 minutes)
 "
@@ -119,6 +119,18 @@ echo "
 
 	change blacklist parameter to include all listed KBs except one (do not use KB2267602)
 	change patch_window parameter to be around current time
+	   Although patch_window will automatically show up in Puppet DSC, 
+	   to save, it must be in YAML format and ALL strings must be
+	   enclosed in double quotes or PE console will attempt to stringify
+	   and cause compilation errors
+	   For exmaple:
+
+	   {
+		   "range": "01:00 - 23:00",
+		   "weekday": "Sunday",
+		   "retry": 3
+	   }
+
 	run puppet, one patch should be applied
 "
 read -r -s -p $"Press any key to continue..." -n1 key
