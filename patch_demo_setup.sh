@@ -5,31 +5,38 @@
 
 PROJECT=$1
 GIT_BRANCH=$2
+CLIENT_COUNT=$3
 GIT_USER=spp@unixsa.net
 GIT_NAME='Stephen P. Potter'
 
 if [ "x${PROJECT}" == "x" ];
 then
-	echo "usage: $0 [project] <env>"
+	echo "usage: $0 [project] <env> <num_nodes>"
 	exit 1
 fi
 if [ "x${GIT_BRANCH}" == "x" ];
 then
 	GIT_BRANCH=development
 fi
+if [ "x${CLIENT_COUNT}" == "x" ];
+then
+	CLIENT_COUNT=2
+fi
 
 CR_BASE="${HOME}/patch_demo/files"
 CR_WORK="${HOME}/${PROJECT}/control-repo"
+
+TOKEN=`curl -s -S -k -X POST -H 'Content-Type: application/json' -d '{"login": "admin", "password": "puppetlabs", "lifetime": "24h"}' https://${PROJECT}-master.classroom.puppet.com:4433/rbac-api/v1/auth/token |jq -r '.token'`
 
 # Setup code in control-repo
 #Clone git instance 
 mkdir ~/${PROJECT}
 cd ~/${PROJECT}
-#echo "https://root:PuppetClassroomGitlabForYou@${PROJECT}-gitlab.classroom.puppet.com" >> ~/.git-credentials
-git clone https://${PROJECT}-gitlab.classroom.puppet.com/puppet/control-repo.git
+echo "https://root:PuppetClassroomGitlabForYou@${PROJECT}-gitlab.classroom.puppet.com" >> ~/.git-credentials
 git config --global user.email ${GIT_USER}
 git config --global user.name "${GIT_NAME}"
 git config --global credential.helper store
+git clone https://${PROJECT}-gitlab.classroom.puppet.com/puppet/control-repo.git
 
 cd ${CR_WORK}
 
@@ -65,6 +72,8 @@ PFILE_SRC="${CR_BASE}/Puppetfile"
 PFILE_WORK="${CR_WORK}/Puppetfile"
 cp $PFILE_SRC $PFILE_WORK
 
+touch ${CR_WORK}/bolt.yaml
+
 PROFILE_DIR="${CR_WORK}/site-modules/profile/manifests"
 #Add profile::platform::baseline::windows::patch_mgmt (.pp file) from blog
 PROFILE_WIN_DIR="platform/baseline/windows"
@@ -76,6 +85,8 @@ cp ${CR_BASE}/windows.pp ${PROFILE_DIR}/platform/baseline/
 #Add profile::app:wsus (.pp file) from blog
 cp ${CR_BASE}/wsus.pp ${PROFILE_DIR}/app/
 
+cp ${CR_BASE}/RunSync.ps1 ${PROFILE_DIR}/../tasks/wsus_sync.ps1
+
 #Commit to git
 cd ${CR_WORK}
 git add .
@@ -85,28 +96,44 @@ git commit -m "Added patch_mgmt stuff"
 #Deploy code to git branch
 git push origin ${GIT_BRANCH}
 
+echo "
+
+	ensure CD4PE run has completed
+
+	"
+read -rsp $"Press any key to continue after confirming CD4PE pipeline setup is completed without errors..." -n1 key
+
 ## Setup classifications in PE console
+#Create Dev and Production Groups
+curl -s -S -k -X PUT -H 'Content-Type: application/json' -H "X-Authentication: $TOKEN" -d '{ "name": "My Test Development", "parent": "00000000-0000-4000-8000-000000000000", "environment": "cd4pe_development", "rule": ["~",["fact", "clientcert"], "[13579]"], "classes": {} }' https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/groups/00000000-2112-4000-8000-000000000001
+
+curl -s -S -k -X PUT -H 'Content-Type: application/json' -H "X-Authentication: $TOKEN" -d '{ "name": "My Test Production", "parent": "00000000-0000-4000-8000-000000000000", "environment": "cd4pe_production", "rule": [ "~",["fact", "clientcert"], "[02468]"], "classes": {} }' https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/groups/00000000-2112-4000-8000-000000000002
+
+# Create Windows Dev and Prod Groups with kernel = windows
+curl -s -S -k -X PUT -H 'Content-Type: application/json' -H "X-Authentication: $TOKEN" -d '{ "name": "My Test Windows Development", "parent": "00000000-2112-4000-8000-000000000001", "environment": "cd4pe_development", "rule": ["=",["fact","kernel"],"windows"], "classes": {} }' https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/groups/00000000-2112-4000-8001-000000000001
+
+curl -s -S -k -X PUT -H 'Content-Type: application/json' -H "X-Authentication: $TOKEN" -d '{ "name": "My Test Windows Production", "parent": "00000000-2112-4000-8000-000000000002", "environment": "cd4pe_production", "rule": ["=",["fact","kernel"],"windows"], "classes": {} }' https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/groups/00000000-2112-4000-8001-000000000002
+
+curl -s -S -k -X POST -H 'Content-Type:application/json' -H "X-Authentication: $TOKEN" https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/update-classes
+
+# Create WSUS group under production, pin win0
+curl -s -S -k -X PUT -H 'Content-Type: application/json' -H "X-Authentication: $TOKEN" -d '{ "name": "My Test WSUS Production", "parent": "00000000-2112-4000-8001-000000000002", "environment": "cd4pe_production", "classes": {"profile::app::wsus": {} } }' https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/groups/00000000-2112-4000-8001-000000000003
+
+curl -s -S -k -X POST -H 'Content-Type: application/json' -H "X-Authentication: $TOKEN" -d "{ \"nodes\": [ \"${PROJECT}win0.classroom.puppet.com\"] }" https://${PROJECT}-master.classroom.puppet.com:4433/classifier-api/v1/groups/00000000-2112-4000-8001-000000000003/pin
+
 echo "
 
-Create Windows $GIT_BRANCH environment group under $GIT_BRANCH
-	use kernel = \"windows\" (lower case)
+	take a coffee break as WSUS setup is completed (about 20 minutes)
+
 "
+bolt command run 'puppet agent -t' --targets ${PROJECT}win0.classroom.puppet.com --transport winrm --user administrator --password Puppetlabs! --no-ssl
 
-read -rsp $"Press any key to continue..." -n1 key
-echo "
+bolt task run 'profile::wsus_sync' --targets ${PROJECT}win0.classroom.puppet.com --transport winrm --user administrator --password Puppetlabs! --no-ssl
 
-Create WSUS environment under Windows
-	pin win0 node as rule (assumes using Production environment)
-	add class profile::app:wsus
-	run Puppet and take a coffee break as WSUS setup is completed (about 20 minutes)
-"
-
-read -rsp $"Press any key to continue after confirming WSUS setup is completed without errors..." -n1 key
-echo "
-
-on win0, go into WSUS and force a sync to ensure patches are updated, take another break (could be hours)"
+#read -rsp $"Press any key to continue after confirming WSUS setup is completed without errors..." -n1 key
 
 read -rsp $"Press any key to continue after confirming WSUS synchronization is completed without errors..." -n1 key
+
 echo "
 
 Add patch_mgmt to Windows Prod classification

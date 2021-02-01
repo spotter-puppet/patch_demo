@@ -1,0 +1,117 @@
+config:
+  enable_pull_requests_from_forks: false
+  deployment_policy_branch: "production"
+  enable_pe_plans: true
+pipelines:
+  development:
+    triggers:
+    - "COMMIT"
+    stages:
+    - name: "Code Validation stage"
+      steps:
+      - type: "JOB"
+        name: "control-repo-manifest-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "JOB"
+        name: "control-repo-hiera-syntax-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "JOB"
+        name: "control-repo-template-syntax-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "JOB"
+        name: "control-repo-puppetfile-syntax-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      auto_promote: "all_succeeded"
+    - name: "Impact Analysis stage"
+      steps:
+      - type: "IMPACT_ANALYSIS"
+        concurrent_compilations: 10
+        all_deployments: true
+      - type: "PULL_REQUEST_GATE"
+        concurrent_compilations: 0
+        all_deployments: false
+      auto_promote: "all_succeeded"
+    - name: "Deployment stage"
+      steps:
+      - type: "DEPLOYMENT"
+        name: "Deployment to cd4pe_development on my-pe-master"
+        policy:
+          name: "cd4pe_deployments::direct"
+        parameters:
+          noop: false
+          fail_if_no_nodes: true
+        timeout: 3600000
+        concurrent_compilations: 0
+        all_deployments: false
+        pe_server: "my-pe-master"
+        target:
+          type: "NODE_GROUP"
+          node_group_id: "3c44f9cf-98ef-44b9-b89d-7f771784babe"
+      - type: "DEPLOYMENT"
+        name: "Deployment to cd4pe_production on my-pe-master"
+        policy:
+          name: "cd4pe_deployments::direct"
+        parameters:
+          noop: false
+          fail_if_no_nodes: true
+        timeout: 3600000
+        concurrent_compilations: 0
+        all_deployments: false
+        pe_server: "my-pe-master"
+        target:
+          type: "NODE_GROUP"
+          node_group_id: "904a9177-b0a6-4f56-8969-336b1c1a62d0"
+      auto_promote: false
+  master:
+    triggers:
+    - "COMMIT"
+    - "PULL_REQUEST"
+    stages:
+    - name: "Pipeline Stage 1"
+      steps:
+      - type: "JOB"
+        name: "control-repo-puppetfile-syntax-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "JOB"
+        name: "control-repo-template-syntax-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "JOB"
+        name: "control-repo-hiera-syntax-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      - type: "JOB"
+        name: "control-repo-manifest-validate"
+        concurrent_compilations: 0
+        all_deployments: false
+      auto_promote: "all_succeeded"
+    - name: "Pipeline Stage 2"
+      steps:
+      - type: "IMPACT_ANALYSIS"
+        concurrent_compilations: 10
+        all_deployments: true
+      auto_promote: false
+    - name: "Pipeline Stage 3"
+      steps:
+      - type: "DEPLOYMENT"
+        name: "Deployment to production on my-pe-master"
+        policy:
+          name: "cd4pe_deployments::direct"
+        parameters:
+          noop: false
+          fail_if_no_nodes: true
+        timeout: 3600000
+        concurrent_compilations: 0
+        all_deployments: false
+        pe_server: "my-pe-master"
+        target:
+          type: "NODE_GROUP"
+          node_group_id: "f8cdd3cb-25ee-4a20-9053-86e697883cb7"
+      auto_promote: false
+spec_version: "V1"
+

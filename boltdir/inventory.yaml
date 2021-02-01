@@ -1,0 +1,33 @@
+groups:
+  - name: linux
+    groups:
+      - name: linuxdev
+        targets:
+          - flybynightnix1.classroom.puppet.com
+      - name: linuxprod
+        targets:
+          - flybynightnix0.classroom.puppet.com
+          - flybynightnix2.classroom.puppet.com
+    config:
+      transport: ssh
+      ssh:
+        user: centos
+        private-key: ~/.ssh/student.pem
+        host-key-check: false
+        run-as: root
+  - name: windows
+    groups:
+      - name: windowsdev
+        targets:
+          - flybynightwin1.classroom.puppet.com
+      - name: windowsprod
+        targets:
+          - flybynightwin0.classroom.puppet.com
+          - flybynightwin2.classroom.puppet.com
+    config:
+      transport: winrm
+      winrm:
+        user: administrator
+        password: Puppetlabs!
+        ssl: false
+        run-as: administrator
